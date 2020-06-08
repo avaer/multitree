@@ -348,11 +348,16 @@ const {scene: trees} = await new Promise((accept, reject) => {
 // console.log('got trees', trees);
 // trees.position.set(0, 70, 0);
 // trees.scale.set(0.1, 0.1, 0.1);
-trees.children.forEach((c, i) => {
-  if (/mothertree/i.test(c.name)) {
-    c.visible = false;
+
+for(;;) {
+  const index = trees.children.findIndex(c => /mothertree/i.test(c.name));
+  if (index !== -1) {
+    const tree = trees.children[index];
+    trees.remove(trees.children[index]);
+  } else {
+    break;
   }
-});
+}
 // trees.remove(trees.children[34]); //.scale.multiplyScalar(0.0001);
 // trees.remove(trees.children[30]);
 // trees.children.splice(0, 34);
@@ -379,11 +384,17 @@ for (let i = 0; i < trees.children.length; i++) {
   } */
 }
 // trees.children.splice(8, Infinity)
+let treeImg = null;
+trees.traverse(o => {
+  if (!treeImg && o.isMesh && o.material.map) {
+    treeImg = o.material.map;
+  }
+});
 const treeMaterial = new THREE.ShaderMaterial({
   uniforms: {
     tex: {
       type: 't',
-      value: trees.children[0].material.map,
+      value: treeImg,
     },
   },
   vertexShader: `\
@@ -423,10 +434,20 @@ trees.traverse(o => {
     }); */
   }
 });
-console.log('got', trees, trees.children.length);
+console.log('got', trees, trees.children.map(c => c.name));
 scene.add(trees);
 
-const tree = trees.children.find(o => /island4/i.test(o.name));
+const _getRandomChild = o => {
+  const a = [];
+  o.traverse(o => {
+    if (o.isMesh) {
+      a.push(o);
+    }
+  });
+  return a[Math.floor(rng() * a.length)] || null;
+};
+
+// const tree = trees.children.find(o => /island4/i.test(o.name));
 const treeProbability = 0.015;
 
 const heightfieldGeometries = [];
@@ -469,8 +490,8 @@ for (let x = -8; x <= 8; x++) {
 
           if (v < treeProbability) {
             // for (let i = 0; i < 20; i++) {
-              // const tree = trees[Math.floor(rng() * trees.length)];
-              const child = tree.children[Math.floor(rng() * tree.children.length)];
+              const tree = trees.children[Math.floor(rng() * trees.children.length)];
+              const child = _getRandomChild(tree);
               const index = child.geometry.index.array[Math.floor(rng() * child.geometry.index.array.length)];
               const position = new THREE.Vector3().set(
                 ax,
