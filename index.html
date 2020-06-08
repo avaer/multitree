@@ -149,7 +149,7 @@ const _generateHeightfield = (ox, oy) => {
 
       const ax = (ox * NUM_CELLS) + dx;
       const ay = (oy * NUM_CELLS) + dy;
-      const elevation = _getHeightAt(ax, ay);
+      const elevation = _getHeightAt(ax, ay) - originHeight;
 
       points[index] = elevation;
       if (elevation < minHeight) {
@@ -169,10 +169,9 @@ const _generateHeightfield = (ox, oy) => {
     ],
   };
 };
+const originHeight = _getHeightAt(0, 0);
 
 (async () => {
-
-const originHeight = _getHeightAt(0, 0);
 
 const renderer = new THREE.WebGLRenderer({
   antialias: true,
@@ -187,13 +186,13 @@ document.body.appendChild(renderer.domElement);
 renderer.domElement.style.backgroundColor = '#000';
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
-camera.position.set(0, originHeight + 1, 10);
+camera.position.set(0, 1, 10);
 
 const orbitControls = new OrbitControls(camera, renderer.domElement);
 orbitControls.screenSpacePanning = true;
 orbitControls.enableMiddleZoom = false;
 // orbitControls.update();
-orbitControls.target.set(0, originHeight + 1, 0);
+orbitControls.target.set(0, 1, 0);
 
 const ambientLight = new THREE.AmbientLight(0xFFFFFF);
 scene.add(ambientLight);
@@ -298,7 +297,7 @@ const HEIGHTFIELD_SHADER = {
 
       // diffuseColor.r += uv.x;
 
-      diffuseColor *= 0.5 + pow(min(max((vPosition.y - ${originHeight.toFixed(8)} + 16.0) / 16.0, 0.0), 1.0), 1.0); // * 5.0;
+      diffuseColor *= 0.5 + pow(min(max((vPosition.y + 16.0) / 32.0, 0.0), 1.0), 1.0); // * 5.0;
 
       // diffuseColor.rb += uv * 0.1;
       // diffuseColor.g = 0.0;
@@ -378,7 +377,7 @@ for (let i = 0; i < trees.children.length; i++) {
   const o = trees.children[i];
   console.log(o.name);
   // console.log('got mesh', o);
-  o.position.x += -10 + (i++) * 1;
+  // o.position.x += -10 + (i++) * 1;
   /* if (i >= 0) {
     o.scale.set(0.000001, 0.000001, 0.000001);
   } */
@@ -435,6 +434,7 @@ trees.traverse(o => {
   }
 });
 console.log('got', trees, trees.children.map(c => c.name));
+trees.position.set(16, 0, 0);
 scene.add(trees);
 
 const _getRandomChild = o => {
