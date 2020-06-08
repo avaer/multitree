@@ -9,6 +9,7 @@
     "worker": "worker.js"
   },
   "dependencies": {
+    "express": "^4.17.1",
     "isosurface": "^1.0.0"
   }
 }
