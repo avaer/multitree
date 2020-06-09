@@ -132,10 +132,6 @@ const elevationNoise = generator.uniform({
   frequency: 0.002,
   octaves: 8,
 });
-const treeNoise = generator.uniform({
-  frequency: 0.1,
-  octaves: 4,
-});
 
 const _getHeightAt = (x, y) => (-0.3 + Math.pow(elevationNoise.in2D(x + 1000, y + 1000), 0.5)) * 64;
 const _generateHeightfield = (ox, oy) => {
@@ -297,7 +293,7 @@ const HEIGHTFIELD_SHADER = {
 
       // diffuseColor.r += uv.x;
 
-      diffuseColor *= 0.5 + pow(min(max((vPosition.y + 16.0) / 32.0, 0.0), 1.0), 1.0); // * 5.0;
+      diffuseColor *= 0.5 + pow(min(max((vPosition.y + 16.0) / 24.0, 0.0), 1.0), 1.0); // * 5.0;
 
       // diffuseColor.rb += uv * 0.1;
       // diffuseColor.g = 0.0;
@@ -389,7 +385,7 @@ trees.traverse(o => {
     treeImg = o.material.map;
   }
 });
-const treeMaterial = new THREE.ShaderMaterial({
+const objectMaterial = new THREE.ShaderMaterial({
   uniforms: {
     tex: {
       type: 't',
@@ -420,13 +416,13 @@ const treeMaterial = new THREE.ShaderMaterial({
       vec3 tV = texture2D(tex, vUv).rgb;
       gl_FragColor = vec4( tV, 1.0 );
       // gl_FragColor.rgb *= 0.9 + 0.1 * dot(vNormal, normalize(vec3(1.0, 1.0, 1.0)));
-      gl_FragColor.rgb *= 0.75 + pow(min(max(vPosition.y / 1000.0, 0.0), 1.0), 1.0) * 0.5;
+      gl_FragColor.rgb *= 0.75 + pow(min(max(vPosition.y / 10.0, 0.0), 1.0), 1.0) * 0.5;
     }
   `
 });
 trees.traverse(o => {
   if (o.isMesh) {
-    o.material = treeMaterial;
+    o.material = objectMaterial;
     /* o.material = new THREE.MeshBasicMaterial({
       color: 0xFFFFFF,
       map: o.material.map,
@@ -434,8 +430,8 @@ trees.traverse(o => {
   }
 });
 console.log('got', trees, trees.children.map(c => c.name));
-trees.position.set(16, 0, 0);
-scene.add(trees);
+// trees.position.set(16, 0, 0);
+// scene.add(trees);
 
 const _getRandomChild = o => {
   const a = [];
@@ -447,71 +443,110 @@ const _getRandomChild = o => {
   return a[Math.floor(rng() * a.length)] || null;
 };
 
-// const tree = trees.children.find(o => /island4/i.test(o.name));
-const treeProbability = 0.015;
+const treeCandidates = trees.children.filter(o => /tree|island/i.test(o.name));
+const treeNoise = generator.uniform({
+  frequency: 0.1,
+  octaves: 4,
+});
+const treeProbability = 0.005;
+const grassCandidates = trees.children.filter(o => /grass|flower/i.test(o.name));
+const grassNoise = generator.uniform({
+  frequency: 0.1,
+  octaves: 5,
+});
+const grassProbability = 0.08;
+const objectCandidates = trees.children.filter(o => /crystal|stone/i.test(o.name));
+const objectNoise = generator.uniform({
+  frequency: 0.1,
+  octaves: 5,
+});
+const objectProbability = 0.05;
 
-const heightfieldGeometries = [];
-for (let x = -8; x <= 8; x++) {
-  for (let y = -8; y <= 8; y++) {
-    const mapChunk = _generateHeightfield(x, y);
-    const {points, heightRange} = mapChunk;
-
-    const heightfieldGeometry = new THREE.PlaneBufferGeometry(NUM_CELLS, NUM_CELLS, NUM_CELLS, NUM_CELLS)
-      .applyMatrix4(new THREE.Matrix4().makeRotationFromQuaternion(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), -Math.PI/2)))
-      .applyMatrix4(new THREE.Matrix4().makeTranslation(x*NUM_CELLS + NUM_CELLS/2, 0, y*NUM_CELLS + NUM_CELLS/2));
-    const c = new THREE.Color(0xed4042);
-    const colors = new Float32Array(heightfieldGeometry.attributes.position.array.length);
-    for (let i = 0; i < colors.length; i += 3) {
-      const dx = heightfieldGeometry.attributes.position.array[i];
-      const dy = heightfieldGeometry.attributes.position.array[i+2];
-      c.toArray(colors, i);
-      colors[i] += dx/500;
-      colors[i+2] += dy/500;
-    }
-    heightfieldGeometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
-    for (let i = 0; i < heightfieldGeometry.attributes.position.array.length; i += 3) {
-      const dx = heightfieldGeometry.attributes.position.array[i] - x*NUM_CELLS;
-      const dy = heightfieldGeometry.attributes.position.array[i+2] - y*NUM_CELLS;
+const _addObjects = (candidates, noise, probability, x, y, points) => {
+  const objects = [];
+  for (let dy = 0; dy < NUM_CELLS_OVERSCAN; dy++) {
+    for (let dx = 0; dx < NUM_CELLS_OVERSCAN; dx++) {
       const pointIndex = dx + (dy * NUM_CELLS_OVERSCAN);
       const elevation = points[pointIndex];
-      heightfieldGeometry.attributes.position.array[i+1] = elevation;
-    }
-    heightfieldGeometries.push(heightfieldGeometry);
 
-    for (let dy = 0; dy < NUM_CELLS_OVERSCAN; dy++) {
-      for (let dx = 0; dx < NUM_CELLS_OVERSCAN; dx++) {
-        const pointIndex = dx + (dy * NUM_CELLS_OVERSCAN);
-        const elevation = points[pointIndex];
+      if (elevation > 0) {
+        const ax = (x * NUM_CELLS) + dx;
+        const ay = (y * NUM_CELLS) + dy;
+        const v = noise.in2D(ax + 1000, ay + 1000);
 
-        if (elevation > 0) {
-          const ax = (x * NUM_CELLS) + dx;
-          const ay = (y * NUM_CELLS) + dy;
-          const v = treeNoise.in2D(ax + 1000, ay + 1000);
-
-          if (v < treeProbability) {
-            // for (let i = 0; i < 20; i++) {
-              const tree = trees.children[Math.floor(rng() * trees.children.length)];
-              const child = _getRandomChild(tree);
-              const index = child.geometry.index.array[Math.floor(rng() * child.geometry.index.array.length)];
-              const position = new THREE.Vector3().set(
+        if (v < treeProbability) {
+          // for (let i = 0; i < 20; i++) {
+            const candidate = candidates[Math.floor(rng() * candidates.length)];
+            // const child = _getRandomChild(candidate);
+            // const index = child.geometry.index.array[Math.floor(rng() * child.geometry.index.array.length)];
+            const m = new THREE.Matrix4().compose(
+              new THREE.Vector3(
                 ax,
                 elevation,
                 ay
-              );
-              const tree2 = tree.clone();
-              tree2.position.copy(position);
-              scene.add(tree2);
-            // }
-          }
+              ),
+              new THREE.Quaternion(),
+              new THREE.Vector3(0.01, 0.01, 0.01)
+            );
+            candidate.traverse(o => {
+              if (o.isMesh) {
+                const g = o.geometry.clone();
+                g.applyMatrix4(m);
+                objects.push(g);
+              }
+            });
+            // scene.add(candidate2);
+          // }
         }
       }
     }
   }
-}
+  return objects;
+};
+{
+  const heightfieldGeometries = [];
+  const objectGeomeries = [];
+  for (let x = -8; x <= 8; x++) {
+    for (let y = -8; y <= 8; y++) {
+      const mapChunk = _generateHeightfield(x, y);
+      const {points, heightRange} = mapChunk;
 
-const heightfieldGeometry = BufferGeometryUtils.mergeBufferGeometries(heightfieldGeometries);
-const heightfieldMesh = new THREE.Mesh(heightfieldGeometry, heightfieldMaterial);
-scene.add(heightfieldMesh);
+      const heightfieldGeometry = new THREE.PlaneBufferGeometry(NUM_CELLS, NUM_CELLS, NUM_CELLS, NUM_CELLS)
+        .applyMatrix4(new THREE.Matrix4().makeRotationFromQuaternion(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), -Math.PI/2)))
+        .applyMatrix4(new THREE.Matrix4().makeTranslation(x*NUM_CELLS + NUM_CELLS/2, 0, y*NUM_CELLS + NUM_CELLS/2));
+      const c = new THREE.Color(0xed4042);
+      const colors = new Float32Array(heightfieldGeometry.attributes.position.array.length);
+      for (let i = 0; i < colors.length; i += 3) {
+        const dx = heightfieldGeometry.attributes.position.array[i];
+        const dy = heightfieldGeometry.attributes.position.array[i+2];
+        c.toArray(colors, i);
+        colors[i] += dx/500;
+        colors[i+2] += dy/500;
+      }
+      heightfieldGeometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+      for (let i = 0; i < heightfieldGeometry.attributes.position.array.length; i += 3) {
+        const dx = heightfieldGeometry.attributes.position.array[i] - x*NUM_CELLS;
+        const dy = heightfieldGeometry.attributes.position.array[i+2] - y*NUM_CELLS;
+        const pointIndex = dx + (dy * NUM_CELLS_OVERSCAN);
+        const elevation = points[pointIndex];
+        heightfieldGeometry.attributes.position.array[i+1] = elevation;
+      }
+      heightfieldGeometries.push(heightfieldGeometry);
+
+      objectGeomeries.push.apply(objectGeomeries, _addObjects(treeCandidates, treeNoise, treeProbability, x, y, points));
+      objectGeomeries.push.apply(objectGeomeries, _addObjects(grassCandidates, grassNoise, grassProbability, x, y, points));
+      objectGeomeries.push.apply(objectGeomeries, _addObjects(objectCandidates, objectNoise, objectProbability, x, y, points));
+    }
+  }
+
+  const heightfieldGeometry = BufferGeometryUtils.mergeBufferGeometries(heightfieldGeometries);
+  const heightfieldMesh = new THREE.Mesh(heightfieldGeometry, heightfieldMaterial);
+  scene.add(heightfieldMesh);
+  
+  const objectGeometry = BufferGeometryUtils.mergeBufferGeometries(objectGeomeries);
+  const objectMesh = new THREE.Mesh(objectGeometry, objectMaterial);
+  scene.add(objectMesh);
+}
 
 function animate() {
   orbitControls.update();
