@@ -111,9 +111,8 @@ const INDEX_RANGES_SIZE = NUM_CHUNKS_HEIGHT * 6 * Uint32Array.BYTES_PER_ELEMENT;
 const PEEK_SIZE = 16 * Uint8Array.BYTES_PER_ELEMENT;
 const PEEKS_ARRAY_SIZE = PEEK_SIZE * NUM_CHUNKS_HEIGHT;
 
-function mod(value, divisor) {
-  const n = value % divisor;
-  return n < 0 ? (divisor + n) : n;
+function mod(a, n) {
+  return ((a%n)+n)%n;
 }
 const _requestImage = src => new Promise((accept, reject) => {
   const img = document.createElement('img');
