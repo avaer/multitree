@@ -1,6 +1,6 @@
 {
-  "name": "Terrain",
-  "description": "Describe your WebXR application",
+  "name": "terrain",
+  "description": "WebXR Terrain",
   "xr_type": "webxr-site@0.0.1",
   "start_url": "index.html"
 }
