@@ -2,52 +2,10 @@
 <html>
 
 <head>
-  <title>xrpackage | trees</title>
-  <link rel=icon type="image/png" href="favicon.png">
-  <link href="index.css" rel=stylesheet>
-  <link href="https://fonts.googleapis.com/css?family=Open+Sans:300,400,600,700&display=swap" rel="stylesheet">
-  <script src="https://kit.fontawesome.com/0735724151.js" crossorigin="anonymous"></script>
+  <title>multitree terrain</title>
 </head>
 
-<body class="header-gap">
-  <header class=header id=header>
-    <a href="/" class="nav icon">山</a>
-    <nav class="selector nav bar" id=selector>
-      <i class="fa fa-solar-system head"></i>
-      <div class=header-label id=header-label>Terrain</div>
-      <i class="fa fa-chevron-down tail"></i>
-      <div class=selections id=selections>
-        <a href="run.html" class=selection id=run-mode>
-          <i class="fa fa-play"></i>
-          <div class=wrap>
-            <h3>Run mode</h3>
-            <p>Switch to run mode</p>
-          </div>
-        </a>
-        <a href="edit.html" class=selection id=edit-mode>
-          <i class="fa fa-pencil"></i>
-          <div class=wrap>
-            <h3>Edit mode</h3>
-            <p>You are currently editing this world</p>
-          </div>
-        </a>
-        <a href="browse.html" class="selection dim">
-          <i class="fa fa-solar-system"></i>
-          <div class=wrap>
-            <h3>Browse packages</h3>
-            <p>Explore the XRPackage registry</p>
-          </div>
-        </a>
-        <a href="help.html" class=selection>
-          <i class="fa fa-book"></i>
-          <div class=wrap>
-            <h3>Documentation</h3>
-            <p>Learn how to make packages and worlds</p>
-          </div>
-        </a>
-      </div>
-    </nav>
-  </header>
+<body>
 
 <script type=module>
 import * as THREE from './three.module.js';
@@ -55,6 +13,7 @@ import alea from './alea.js';
 import {OrbitControls} from './OrbitControls.js';
 import {GLTFLoader} from './GLTFLoader.js';
 import {BufferGeometryUtils} from './BufferGeometryUtils.js';
+import indev from './indev.js';
 
 const CHUNK_HEADER_SIZE = 2 * 4;
 const NUM_SLOTS = 64 * 64;
@@ -79,21 +38,10 @@ import {
 
   NUM_CHUNKS_HEIGHT,
 
-  NUM_RENDER_GROUPS,
-
-  GEOMETRY_BUFFER_SIZE,
-
-  TEXTURE_SIZE,
-
   DEFAULT_SEED,
 
   NUM_POSITIONS_CHUNK,
-
-  PEEK_FACES,
-  PEEK_FACE_INDICES,
-} from './constants.js';
-import murmur from './murmur.js';
-import indev from './indev.js';
+} from './constants.js'
 
 /* const BIOMES_SIZE = _align(NUM_CELLS_OVERSCAN * NUM_CELLS_OVERSCAN * Uint8Array.BYTES_PER_ELEMENT, Float32Array.BYTES_PER_ELEMENT);
 const TEMPERATURE_SIZE = _align(1 * Uint8Array.BYTES_PER_ELEMENT, Float32Array.BYTES_PER_ELEMENT);
@@ -416,11 +364,11 @@ const objectMaterial = new THREE.ShaderMaterial({
 
     void main() {
       vec3 tV = texture2D(tex, vUv).rgb;
-      
+
       /* vec3 fdx = vec3( dFdx( vViewPosition.x ), dFdx( vViewPosition.y ), dFdx( vViewPosition.z ) );
       vec3 fdy = vec3( dFdy( vViewPosition.x ), dFdy( vViewPosition.y ), dFdy( vViewPosition.z ) );
       vec3 normal = normalize( cross( fdx, fdy ) ); */
-      
+
       float dotNL = dot( vNormal, normalize(vec3(-1.0, -1.0, -1.0)));
       if (dotNL > 0.3) {
         dotNL = 0.3;
@@ -555,7 +503,7 @@ const _addObjects = (candidates, noise, probability, x, y, points) => {
   const heightfieldGeometry = BufferGeometryUtils.mergeBufferGeometries(heightfieldGeometries);
   const heightfieldMesh = new THREE.Mesh(heightfieldGeometry, heightfieldMaterial);
   scene.add(heightfieldMesh);
-  
+
   const objectGeometry = BufferGeometryUtils.mergeBufferGeometries(objectGeomeries);
   const objectMesh = new THREE.Mesh(objectGeometry, objectMaterial);
   scene.add(objectMesh);
